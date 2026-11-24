@@ -80,7 +80,7 @@ count=0
 for src_dir in "$USER_CERTS_DIR" "$EXTRA_CERTS_DIR"; do
     [ -d "$src_dir" ] || continue
     for f in "$src_dir"/*; do
-        [ -f "$f" ] && [ -s "$f" ] || continue
+        if [ ! -f "$f" ] || [ ! -s "$f" ]; then continue; fi
         if [ "$count" -eq 0 ]; then
             mkdir -p "$SYS_DST" "$APEX_DST"
         fi

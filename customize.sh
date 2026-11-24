@@ -10,7 +10,9 @@ fi
 
 set_perm_recursive "$MODPATH" 0 0 0755 0644
 for s in sync.sh post-fs-data.sh service.sh inotify.sh action.sh uninstall.sh; do
-  [ -f "$MODPATH/$s" ] && set_perm "$MODPATH/$s" 0 0 0755
+  if [ -f "$MODPATH/$s" ]; then
+    set_perm "$MODPATH/$s" 0 0 0755
+  fi
 done
 
 ui_print "- User CA certs in /data/misc/user/0/cacerts-added will be mirrored"

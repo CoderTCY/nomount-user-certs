@@ -1,4 +1,5 @@
 *.zip
+dist/
 sync.log
 sync.log.tmp
 .sync.lock/

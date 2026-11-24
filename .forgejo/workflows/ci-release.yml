@@ -1,0 +1,119 @@
+name: Codeberg CI & Release
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: codeberg-tiny
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure python3 and shellcheck
+        run: |
+          if ! command -v python3 >/dev/null 2>&1; then
+            if command -v apt-get >/dev/null 2>&1; then
+              apt-get update && apt-get install -y --no-install-recommends python3 shellcheck
+            elif command -v apk >/dev/null 2>&1; then
+              apk add --no-cache python3 shellcheck
+            fi
+          fi
+
+      - name: Run checks
+        run: sh scripts/check.sh
+
+      - name: Package module zip
+        run: sh scripts/package.sh
+
+  release:
+    needs: ci
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: codeberg-tiny
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure python3 and curl
+        run: |
+          if ! command -v python3 >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
+            if command -v apt-get >/dev/null 2>&1; then
+              apt-get update && apt-get install -y --no-install-recommends python3 curl
+            elif command -v apk >/dev/null 2>&1; then
+              apk add --no-cache python3 curl
+            fi
+          fi
+
+      - name: Package release zip
+        run: sh scripts/package.sh "${GITHUB_REF_NAME}"
+
+      - name: Create or update Codeberg Release
+        env:
+          FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          server = os.environ["GITHUB_SERVER_URL"].rstrip("/")
+          repo = os.environ["GITHUB_REPOSITORY"]
+          tag = os.environ["GITHUB_REF_NAME"]
+          token = os.environ["FORGEJO_TOKEN"]
+          api = f"{server}/api/v1/repos/{repo}/releases"
+          headers = {"Authorization": f"token {token}"}
+
+          def req(method, url, data=None, content_type=None):
+              h = dict(headers)
+              if content_type:
+                  h["Content-Type"] = content_type
+              r = urllib.request.Request(url, data=data, headers=h, method=method)
+              with urllib.request.urlopen(r, timeout=30) as resp:
+                  body = resp.read()
+                  return json.loads(body.decode("utf-8")) if body else None
+
+          try:
+              rel = req("GET", f"{api}/tags/{urllib.parse.quote(tag)}")
+          except urllib.error.HTTPError as e:
+              if e.code != 404:
+                  raise
+              payload = json.dumps({
+                  "tag_name": tag,
+                  "name": tag,
+                  "body": f"Release {tag}",
+                  "draft": False,
+                  "prerelease": False,
+              }).encode("utf-8")
+              rel = req("POST", api, data=payload, content_type="application/json")
+
+          rel_id = rel["id"]
+          wanted = [
+              f"nomount-user-certs-{tag}.zip",
+              f"nomount-user-certs-{tag}.zip.sha256",
+          ]
+          for asset in rel.get("assets", []):
+              if asset.get("name") in wanted:
+                  req("DELETE", f"{api}/{rel_id}/assets/{asset['id']}")
+
+          for name in wanted:
+              path = os.path.join("dist", name)
+              boundary = "----ForgejoBoundary7MA4YWxkTrZu0gW"
+              with open(path, "rb") as f:
+                  file_bytes = f.read()
+              body = (
+                  f"--{boundary}\r\n"
+                  f'Content-Disposition: form-data; name="attachment"; filename="{name}"\r\n'
+                  f"Content-Type: application/octet-stream\r\n\r\n"
+              ).encode("utf-8") + file_bytes + f"\r\n--{boundary}--\r\n".encode("utf-8")
+              url = f"{api}/{rel_id}/assets?name={urllib.parse.quote(name)}"
+              req("POST", url, data=body, content_type=f"multipart/form-data; boundary={boundary}")
+              print(f"Uploaded {name} to Codeberg release {tag}")
+          PYEOF
