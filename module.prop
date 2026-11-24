@@ -1,0 +1,7 @@
+id=nomount_user_certs
+name=NoMount User Certs Sync
+version=v1.0.0
+versionCode=100
+author=CoderTCY
+description=Syncs Android user CA certificates to /system/etc/security/cacerts and /apex/com.android.conscrypt/cacerts via NoMount VFS redirection without tmpfs mounts.
+updateJson=https://raw.githubusercontent.com/CoderTCY/nomount-user-certs/main/update.json

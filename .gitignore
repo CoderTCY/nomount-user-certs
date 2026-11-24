@@ -1,0 +1,10 @@
+*.zip
+sync.log
+sync.log.tmp
+.sync.lock/
+system/
+apex/
+extra_certs/*.0
+extra_certs/*.crt
+extra_certs/*.pem
+extra_certs/*.key
