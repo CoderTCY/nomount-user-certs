@@ -3,7 +3,7 @@ export PATH="/data/adb/ksu/bin:/data/adb/ap/bin:/data/adb/magisk:$PATH"
 
 MODDIR=${0%/*}
 [ "$MODDIR" = "$0" ] && MODDIR="."
-MODDIR=$(CDPATH= cd -- "$MODDIR" && pwd)
+MODDIR=$(CDPATH='' cd -- "$MODDIR" && pwd)
 
 NM_BIN="/data/adb/modules/nomount/bin/nm"
 USER_CERTS_DIR="/data/misc/user/0/cacerts-added"
@@ -61,6 +61,7 @@ acquire_lock() {
     echo "$$" > "$LOCK_DIR/pid"
 }
 
+# shellcheck disable=SC2329
 release_lock() {
     rm -rf "$LOCK_DIR" 2>/dev/null || true
 }

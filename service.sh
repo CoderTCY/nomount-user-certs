@@ -3,7 +3,7 @@ export PATH="/data/adb/ksu/bin:/data/adb/ap/bin:/data/adb/magisk:$PATH"
 
 MODDIR=${0%/*}
 [ "$MODDIR" = "$0" ] && MODDIR="."
-MODDIR=$(CDPATH= cd -- "$MODDIR" && pwd)
+MODDIR=$(CDPATH='' cd -- "$MODDIR" && pwd)
 
 USER_CERTS_DIR="/data/misc/user/0/cacerts-added"
 
